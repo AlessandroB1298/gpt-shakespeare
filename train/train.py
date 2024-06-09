@@ -3,13 +3,12 @@ import torch.nn as nn
 from torch.nn import functional as F
 # read lines from data file
 
-block_size = 256
+block_size = 8
 batch_size = 64
 learning_rate = 3e-1
 max_iters = 5000# steps
-vocab_size = 65
 eval_iters = 500
-n_embeds = 384
+n_embeds = 32
 num_heads = 6
 n_layer = 6
 dropout= 0.2 #regularization technique 
@@ -118,10 +117,10 @@ class FeedForward(nn.Module):
     def __init__ (self, n_embeds):
         super(). __init__()
         self.net = nn.Sequential(
-            nn.Linear(n_embeds,  n_embeds), # inner / output is 5inner layer should be multiplied by 4 because inner layer has a dimensionality of 2048, and 
+            nn.Linear(n_embeds, 4 * n_embeds),
             nn.ReLU(),
-            nn.Linear(n_embeds, n_embeds), # self projection layer going back into the residual pathway
-            nn.Dropout(dropout)
+            nn.Linear(4 * n_embeds, n_embeds),
+            nn.Dropout(dropout),
         )
     def forward(self, x):
         return self.net(x)
@@ -155,9 +154,14 @@ class BigramLanguageModel(nn.Module):
         #self.sa_head = Head(n_embeds) # create self_attention_head in our language model class
         #self.sa_heads = MultiHeadAttention(4, n_embeds//4) #4 heads for 8-dimensional self_attention
         #self.ffwd = FeedForward(n_embeds)
-        self.blocks = nn.Sequential(*[Block(n_embeds, num_heads=num_heads) for _ in range(n_layer)])
+        self.blocks = nn.Sequential(
+            Block(n_embeds, num_heads=num_heads),
+            Block(n_embeds, num_heads=num_heads),
+            Block(n_embeds, num_heads=num_heads),
+            nn.LayerNorm(n_embeds),
+        )
         self.lm_head = nn.Linear(n_embeds, vocab_size) #linear layer because our model is getting more complex, best practice
-
+        
 
     def forward(self, idx, targets=None):
         # logits are the raw outputs from the final layer of the deep learning model
